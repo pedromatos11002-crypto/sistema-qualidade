@@ -1,0 +1,189 @@
+0<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema Integrado de Gestão da Qualidade | SENAC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="/src/styles/global.css">
+  </head>
+  <body>
+
+<header class="app-header">
+  <div class="titles">
+    <div class="eyebrow">Sistema de Gestão</div>
+    <h1>Sistema Integrado de Gestão da Qualidade</h1>
+  </div>
+  <div class="doc-code"><b>SGQ-SENAC-01</b>Rev. 01 · <span id="hdrDate"></span></div>
+</header>
+
+<div class="app-body">
+  <nav class="tabs" id="tabNav">
+    <button data-view="dashboard" class="active"><span class="num">00</span> Painel PDCA</button>
+    <button data-view="fluxo"><span class="num">01</span> Fluxograma</button>
+    <button data-view="gut"><span class="num">02</span> Matriz GUT</button>
+    <button data-view="pareto"><span class="num">03</span> Pareto</button>
+    <button data-view="ishikawa"><span class="num">04</span> Ishikawa</button>
+    <button data-view="porques"><span class="num">05</span> 5 Porquês</button>
+    <button data-view="w2h"><span class="num">06</span> Plano 5W2H</button>
+  </nav>
+
+  <main class="content">
+    <!-- Views (mantive a estrutura HTML original) -->
+    <!-- Dashboard -->
+    <section class="view active" id="view-dashboard">
+      <h2 class="view-title">Painel PDCA <span class="tag">Visão Geral</span></h2>
+      <p class="view-desc">O ciclo PDCA amarra todas as ferramentas: o que é planejado no GUT/Pareto/Ishikawa vira ação no 5W2H, é executado no chão de fábrica via Fluxograma/POP, verificado no Checklist e retorna aqui como padronização ou nova ação.</p>
+      <div class="pdca-grid">
+        <div class="pdca-quad plan"><div class="letter">P</div>
+          <h4>Planejar</h4>
+          <div class="stat" id="pdcaPlanStat">0</div>
+          <div class="stat-label">problemas cadastrados na Matriz GUT</div>
+          <ul id="pdcaPlanTop"></ul>
+        </div>
+        <div class="pdca-quad do"><div class="letter">D</div>
+          <h4>Executar</h4>
+          <div class="stat" id="pdcaDoStat">0%</div>
+          <div class="stat-label">ações do 5W2H concluídas</div>
+          <ul id="pdcaDoList"></ul>
+        </div>
+        <div class="pdca-quad check"><div class="letter">C</div>
+          <h4>Verificar</h4>
+          <div class="stat" id="pdcaCheckStat">—</div>
+          <div class="stat-label">conformidade média dos checklists</div>
+          <ul id="pdcaCheckList"></ul>
+        </div>
+        <div class="pdca-quad act"><div class="letter">A</div>
+          <h4>Agir</h4>
+          <div class="stat" id="pdcaActStat">0</div>
+          <div class="stat-label">não conformidades em aberto</div>
+          <ul id="pdcaActList"></ul>
+        </div>
+      </div>
+      <p class="pdca-cycle-note">Planejar → Executar → Verificar → Agir → volta a Planejar</p>
+    </section>
+
+    <!-- Fluxo -->
+    <section class="view" id="view-fluxo">
+      <h2 class="view-title">Fluxograma de Processos <span class="tag">Etapa 01</span></h2>
+      <p class="view-desc">Cadastre as etapas do processo produtivo. Clique em uma etapa para abrir o POP e o Checklist vinculados a ela — é assim que o fluxograma, o POP e o checklist conversam entre si.</p>
+      <div class="card">
+        <h3>Mapa do processo</h3>
+        <div class="flow-track" id="flowTrack"></div>
+      </div>
+    </section>
+
+    <!-- GUT -->
+    <section class="view" id="view-gut">
+      <h2 class="view-title">Matriz GUT <span class="tag">Etapa 01</span></h2>
+      <p class="view-desc">Gravidade × Urgência × Tendência. Cadastre os problemas e o sistema calcula o score e ordena automaticamente do mais crítico para o menos crítico.</p>
+      <div class="card">
+        <h3>Problemas cadastrados</h3>
+        <table>
+          <thead><tr><th style="width:34%">Problema</th><th>Gravidade</th><th>Urgência</th><th>Tendência</th><th>Score</th><th>Prioridade</th><th></th></tr></thead>
+          <tbody id="gutBody"></tbody>
+        </table>
+        <div class="empty" id="gutEmpty" style="display:none;">Nenhum problema cadastrado ainda.</div>
+        <div style="margin-top:14px;"><button class="btn orange" onclick="gutAddRow()">+ Adicionar problema</button></div>
+      </div>
+    </section>
+
+    <!-- Pareto -->
+    <section class="view" id="view-pareto">
+      <h2 class="view-title">Gráfico de Pareto <span class="tag">Etapa 01 · 80/20</span></h2>
+      <p class="view-desc">Liste as causas/defeitos e a frequência de ocorrência. O gráfico ordena do maior para o menor e traça a curva acumulada com a linha de referência dos 80%.</p>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Ocorrências</h3>
+          <table>
+            <thead><tr><th>Causa / Defeito</th><th style="width:100px">Frequência</th><th></th></tr></thead>
+            <tbody id="paretoBody"></tbody>
+          </table>
+          <div class="empty" id="paretoEmpty" style="display:none;">Nenhuma causa cadastrada ainda.</div>
+          <div style="margin-top:14px;"><button class="btn orange" onclick="paretoAddRow()">+ Adicionar causa</button></div>
+        </div>
+        <div class="card">
+          <h3>Gráfico 80/20</h3>
+          <canvas id="paretoChart" height="260"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ishikawa -->
+    <section class="view" id="view-ishikawa">
+      <h2 class="view-title">Diagrama de Ishikawa <span class="tag">Etapa 02 · 6M</span></h2>
+      <p class="view-desc">Defina o problema central e mapeie as causas dentro de cada um dos 6M: Método, Máquina, Medida, Meio Ambiente, Mão de Obra e Matéria-Prima.</p>
+      <div class="card">
+        <label>Problema central (cabeça do peixe)</label>
+        <input type="text" id="ishiProblema" placeholder="Ex.: Índice de retrabalho acima de 8% na linha de embalagem" oninput="ishiSaveProblema()">
+      </div>
+      <div class="card">
+        <h3>Causas por categoria</h3>
+        <div class="ishi-cats" id="ishiCats"></div>
+      </div>
+    </section>
+
+    <!-- 5 Porquês -->
+    <section class="view" id="view-porques">
+      <h2 class="view-title">Técnica dos 5 Porquês <span class="tag">Etapa 02</span></h2>
+      <p class="view-desc">Parta do problema e responda "por quê?" sucessivamente até chegar à causa raiz.</p>
+      <div class="card">
+        <label>Problema</label>
+        <input type="text" id="whyProblema" placeholder="Descreva o problema observado" oninput="whySaveProblema()">
+      </div>
+      <div class="card">
+        <h3>Cascata de investigação</h3>
+        <div id="whyChain"></div>
+      </div>
+    </section>
+
+    <!-- 5W2H -->
+    <section class="view" id="view-w2h">
+      <h2 class="view-title">Plano de Ação 5W2H <span class="tag">Etapa 03</span></h2>
+      <p class="view-desc">Nenhuma ação corretiva sem dono, prazo e motivo. Ações também chegam aqui automaticamente vindas de não conformidades do Checklist.</p>
+      <div class="card">
+        <div class="filter-bar">
+          <div><label>Responsável</label><select id="w2hFilterWho" onchange="w2hRender()"><option value="">Todos</option></select></div>
+          <div><label>Status</label>
+            <select id="w2hFilterStatus" onchange="w2hRender()">
+              <option value="">Todos</option>
+              <option>A iniciar</option><option>Em andamento</option><option>Concluído</option><option>Atrasado</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>O quê</th><th>Por quê</th><th>Onde</th><th>Quem</th><th>Quando</th><th>Como</th><th>Quanto custa</th><th>Status</th><th></th></tr></thead>
+          <tbody id="w2hBody"></tbody>
+        </table>
+        <div class="empty" id="w2hEmpty" style="display:none;">Nenhuma ação cadastrada ainda.</div>
+        <div style="margin-top:14px;"><button class="btn orange" onclick="w2hAddRow()">+ Adicionar ação</button></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeStation()"></div>
+<div class="panel" id="stationPanel">
+  <div class="panel-head">
+    <h3 id="stationTitle">Estação</h3>
+    <button class="close" onclick="closeStation()">Fechar ✕</button>
+  </div>
+  <div class="panel-subtabs">
+    <button class="active" data-sub="pop" onclick="stationSubtab('pop')">POP</button>
+    <button data-sub="checklist" onclick="stationSubtab('checklist')">Checklist</button>
+  </div>
+  <div class="panel-body">
+    <div class="panel-sub active" id="sub-pop"></div>
+    <div class="panel-sub" id="sub-checklist"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module" src="/src/app.js"></script>
+
+  </body>
+</html>
