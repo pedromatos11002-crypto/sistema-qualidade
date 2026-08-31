@@ -5,13 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sistema Integrado de Gestão da Qualidade | SENAC</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="/src/styles/global.css">
   </head>
   <body>
 
 <header class="app-header">
+  <button id="mobileMenuToggle" class="mobile-menu-btn" aria-label="Abrir menu">☰</button>
+  <img src="/assets/imagens.senac.svg" alt="SENAC" class="logo-senac">
   <div class="titles">
     <div class="eyebrow">Sistema de Gestão</div>
     <h1>Sistema Integrado de Gestão da Qualidade</h1>
@@ -28,6 +32,7 @@
     <button data-view="ishikawa"><span class="num">04</span> Ishikawa</button>
     <button data-view="porques"><span class="num">05</span> 5 Porquês</button>
     <button data-view="w2h"><span class="num">06</span> Plano 5W2H</button>
+    <button data-view="reports"><span class="num">07</span> Relatórios</button>
   </nav>
 
   <main class="content">
@@ -63,6 +68,45 @@
         </div>
       </div>
       <p class="pdca-cycle-note">Planejar → Executar → Verificar → Agir → volta a Planejar</p>
+    </section>
+
+    <!-- Relatórios / Gerar PDF -->
+    <section class="view" id="view-reports">
+      <h2 class="view-title">Relatórios <span class="tag">Gerar PDF</span></h2>
+      <p class="view-desc">Gere um relatório profissional a partir dos dados existentes no sistema. Selecione as seções que deseja incluir e visualize antes de salvar em PDF.</p>
+      <div class="card">
+        <h3>Configuração do relatório</h3>
+        <div class="report-form">
+          <div class="row"><label>Título do relatório</label><input type="text" id="reportTitle" placeholder="Relatório de análise"></div>
+          <div class="row"><label>Responsável</label><input type="text" id="reportOwner" placeholder="Nome do responsável"></div>
+          <div class="row"><label>Empresa / Setor</label><input type="text" id="reportSector" placeholder="Empresa / Setor"></div>
+          <div class="row"><label>Data</label><input type="date" id="reportDate"></div>
+          <div class="row"><label>Descrição do problema</label><textarea id="reportProblem" placeholder="Descrição do problema..."></textarea></div>
+          <div class="row"><label>Observações</label><textarea id="reportNotes" placeholder="Observações finais..."></textarea></div>
+
+          <div class="row">
+            <label>Incluir no PDF</label>
+            <div class="checkboxes">
+              <label><input type="checkbox" id="incGUT" checked> Matriz GUT</label>
+              <label><input type="checkbox" id="incPareto" checked> Gráfico de Pareto</label>
+              <label><input type="checkbox" id="incIshi"> Diagrama de Ishikawa</label>
+              <label><input type="checkbox" id="incWhys"> 5 Porquês</label>
+              <label><input type="checkbox" id="incW2H"> 5W2H</label>
+              <label><input type="checkbox" id="incFlow"> Fluxograma</label>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:12px;align-items:center">
+            <button class="btn" id="btnPreview">Visualizar relatório</button>
+            <button class="btn orange" id="btnGenerate">Gerar PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="reportPreviewCard" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3>Pré-visualização</h3><div><button class="btn ghost" id="btnBackToForm">← Voltar</button> <button class="btn orange" id="btnGenerateFromPreview">Gerar PDF</button></div></div>
+        <div id="reportPreview" class="report-preview"></div>
+      </div>
     </section>
 
     <!-- Fluxo -->

@@ -44,6 +44,7 @@ function setActiveView(viewName){
 
   if(viewName === 'dashboard') renderDashboard();
   if(viewName === 'pareto') renderParetoChart();
+  if(viewName === 'reports') renderReport();
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
@@ -474,6 +475,178 @@ function escapeAttr(str){ return escapeHtml(str); }
 /* ===================== INIT ===================== */
 function initAll(){ gutRender(); paretoRender(); ishiRender(); whyRender(); w2hRender(); flowRender(); renderDashboard(); }
 
+/* ===================== REPORTS / PDF GENERATION ===================== */
+function renderReport(){
+  // prepare form defaults
+  const dateEl = document.getElementById('reportDate'); if(dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0,10);
+  const previewCard = document.getElementById('reportPreviewCard'); if(previewCard) previewCard.style.display = 'none';
+}
+
+function buildReportHtml(opts){
+  // opts contains selections and metadata
+  const title = escapeHtml(opts.title || 'Relatório de análise');
+  const owner = escapeHtml(opts.owner || '');
+  const sector = escapeHtml(opts.sector || '');
+  const date = escapeHtml(opts.date || new Date().toISOString().slice(0,10));
+  const problem = escapeHtml(opts.problem || '');
+  const notes = escapeHtml(opts.notes || '');
+
+  let html = `<div class="r-doc">
+    <div class="r-header"><div style="text-align:center"><h1>SISTEMA INTEGRADO DE GESTÃO DA QUALIDADE</h1><h2>RELATÓRIO DE ANÁLISE DA QUALIDADE</h2></div>
+      <div style="margin-top:12px;padding:10px 6px;border-radius:6px;background:#f8f9fb;border:1px solid #eef3f6">
+        <strong>Título:</strong> ${title}<br>
+        <strong>Responsável:</strong> ${owner} &nbsp; • &nbsp; <strong>Setor:</strong> ${sector} &nbsp; • &nbsp; <strong>Data:</strong> ${date}
+      </div>
+    </div>`;
+
+  html += `<div class="report-section"><h4>1. Descrição do problema</h4><div>${problem || '<em>Sem descrição fornecida.</em>'}</div></div>`;
+
+  // GUT
+  if(opts.incGUT){
+    html += `<div class="report-section report-gut"><h4>2. Matriz GUT</h4>`;
+    if(DB.problems && DB.problems.length){
+      const sorted = [...DB.problems].sort((a,b)=> (b.g*b.u*b.t)-(a.g*a.u*a.t));
+      html += `<table><thead><tr><th>Problema</th><th>G</th><th>U</th><th>T</th><th>Score</th><th>Prioridade</th></tr></thead><tbody>`;
+      sorted.forEach(p=>{ const score = p.g*p.u*p.t; const pr = score>=64? 'Crítico' : score>=27? 'Atenção' : 'Baixo'; html += `<tr><td>${escapeHtml(p.nome||'')}</td><td>${p.g}</td><td>${p.u}</td><td>${p.t}</td><td>${score}</td><td>${pr}</td></tr>`; });
+      html += `</tbody></table>`;
+    } else html += '<div class="empty">Nenhum problema cadastrado.</div>';
+    html += `</div>`;
+  }
+
+  // Pareto: include canvas image placeholder
+  if(opts.incPareto){
+    html += `<div class="report-section"><h4>3. Pareto</h4><div id="reportParetoWrap">`;
+    // if a canvas exists, clone it
+    const pc = document.getElementById('paretoChart');
+    if(pc){ html += `<div style="max-width:520px;margin:8px 0;"><canvas id="reportParetoCanvas" width="${pc.width}" height="${pc.height}"></canvas></div>`; }
+    else html += '<div class="empty">Gráfico não disponível.</div>';
+    html += `</div></div>`;
+  }
+
+  // Ishikawa
+  if(opts.incIshi){
+    html += `<div class="report-section"><h4>4. Diagrama de Ishikawa</h4>`;
+    const ish = DB.ishikawa || {problema:'',cats:{}};
+    html += `<div><strong>Problema:</strong> ${escapeHtml(ish.problema||'')}</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px">`;
+    Object.entries(ish.cats || {}).forEach(([k,arr])=>{ html += `<div style="min-width:140px"><strong>${escapeHtml(k)}</strong><ul>${(arr||[]).map(i=>`<li>${escapeHtml(i.texto)}</li>`).join('')||'<li>-</li>'}</ul></div>`; });
+    html += `</div></div>`;
+  }
+
+  // 5 Porquês
+  if(opts.incWhys){
+    html += `<div class="report-section"><h4>5. 5 Porquês</h4>`;
+    if(DB.whys && DB.whys.chain && DB.whys.chain.length){ html += `<ol>` + DB.whys.chain.map(w=>`<li>${escapeHtml(w.resposta)}</li>`).join('') + `</ol>`; }
+    else html += '<div class="empty">Nenhuma cadeia de porquês registrada.</div>';
+    html += `</div>`;
+  }
+
+  // 5W2H
+  if(opts.incW2H){
+    html += `<div class="report-section"><h4>6. 5W2H</h4>`;
+    if(DB.w2h && DB.w2h.length){ html += `<table><thead><tr><th>O quê</th><th>Por quê</th><th>Onde</th><th>Quem</th><th>Quando</th><th>Como</th><th>Quanto</th></tr></thead><tbody>`;
+      DB.w2h.forEach(r=>{ html += `<tr><td>${escapeHtml(r.what)}</td><td>${escapeHtml(r.why)}</td><td>${escapeHtml(r.where)}</td><td>${escapeHtml(r.who)}</td><td>${escapeHtml(r.when)}</td><td>${escapeHtml(r.how)}</td><td>${escapeHtml(r.howmuch)}</td></tr>`; });
+      html += `</tbody></table>`;
+    } else html += '<div class="empty">Nenhuma ação cadastrada.</div>';
+    html += `</div>`;
+  }
+
+  // Fluxograma
+  if(opts.incFlow){
+    html += `<div class="report-section"><h4>7. Fluxograma</h4>`;
+    if(DB.flow && DB.flow.length){ html += `<ol>` + DB.flow.map(s=>`<li><strong>${escapeHtml(s.nome)}</strong> — ${escapeHtml(s.responsavel||'')}</li>`).join('') + `</ol>`; }
+    else html += '<div class="empty">Nenhuma etapa cadastrada.</div>';
+    html += `</div>`;
+  }
+
+  html += `<div class="report-section"><h4>8. Observações / Conclusão</h4><div>${notes || '<em>Sem observações.</em>'}</div></div>`;
+
+  html += `<div class="report-footer"><div>Sistema Integrado de Gestão da Qualidade</div><div class="page-num">Página 1 de 1</div></div>`;
+
+  html += `</div>`;
+  return html;
+}
+
+function renderReportPreview(){
+  const opts = {
+    title: document.getElementById('reportTitle')?.value,
+    owner: document.getElementById('reportOwner')?.value,
+    sector: document.getElementById('reportSector')?.value,
+    date: document.getElementById('reportDate')?.value,
+    problem: document.getElementById('reportProblem')?.value,
+    notes: document.getElementById('reportNotes')?.value,
+    incGUT: !!document.getElementById('incGUT')?.checked,
+    incPareto: !!document.getElementById('incPareto')?.checked,
+    incIshi: !!document.getElementById('incIshi')?.checked,
+    incWhys: !!document.getElementById('incWhys')?.checked,
+    incW2H: !!document.getElementById('incW2H')?.checked,
+    incFlow: !!document.getElementById('incFlow')?.checked
+  };
+  const preview = document.getElementById('reportPreview'); if(!preview) return;
+  preview.innerHTML = buildReportHtml(opts);
+
+  // If pareto chart selected, clone canvas data into preview canvas
+  if(opts.incPareto){
+    const src = document.getElementById('paretoChart');
+    const dst = document.getElementById('reportParetoCanvas');
+    if(src && dst){ try{ dst.getContext('2d').drawImage(src,0,0, dst.width, dst.height); }catch(e){}
+    }
+  }
+
+  const previewCard = document.getElementById('reportPreviewCard'); if(previewCard) previewCard.style.display = '';
+  // scroll to preview
+  setTimeout(()=>{ previewCard.scrollIntoView({behavior:'smooth'}); }, 60);
+}
+
+async function generateReportPDF(){
+  const preview = document.getElementById('reportPreview'); if(!preview){ toast('Gere a pré-visualização antes de exportar.'); return; }
+  // use html2canvas + jspdf
+  try{
+    const { jsPDF } = window.jspdf || {};
+    if(!window.html2canvas || !jsPDF){ toast('Bibliotecas de PDF não carregadas.'); return; }
+
+    // clone preview to avoid on-screen effects
+    const clone = preview.cloneNode(true);
+    clone.style.width = '800px'; clone.style.padding='18px'; clone.style.background='#fff';
+    document.body.appendChild(clone); // temporarily attach
+    const canvas = await window.html2canvas(clone, {scale:2, useCORS:true, backgroundColor:'#ffffff'});
+    document.body.removeChild(clone);
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p','pt','a4');
+    const margin = 40; const pageWidth = pdf.internal.pageSize.getWidth(); const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - margin*2; const imgHeight = canvas.height * imgWidth / canvas.width;
+
+    // if image fits on one page
+    if(imgHeight <= pageHeight - margin*2){
+      pdf.addImage(imgData,'PNG',margin,margin,imgWidth,imgHeight);
+    } else {
+      // slice in canvas-space
+      const scale = imgWidth / canvas.width;
+      const pageHeightPx = Math.floor((pageHeight - margin*2) / scale);
+      let sY = 0;
+      while(sY < canvas.height){
+        const sliceH = Math.min(pageHeightPx, canvas.height - sY);
+        const tmp = document.createElement('canvas'); tmp.width = canvas.width; tmp.height = sliceH;
+        const tctx = tmp.getContext('2d'); tctx.drawImage(canvas, 0, sY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        const img = tmp.toDataURL('image/png');
+        const h = sliceH * scale;
+        pdf.addImage(img,'PNG',margin,margin,imgWidth,h);
+        sY += sliceH;
+        if(sY < canvas.height) pdf.addPage();
+      }
+    }
+
+    // file name
+    const title = document.getElementById('reportTitle')?.value || 'relatorio-qualidade';
+    const date = (document.getElementById('reportDate')?.value || new Date().toISOString().slice(0,10)).replaceAll('-','');
+    const safe = title.replace(/[^a-z0-9\-_]/gi,'-').toLowerCase();
+    const fname = `relatorio-${safe}-${date}.pdf`;
+    pdf.save(fname);
+  }catch(e){ console.error(e); toast('Erro ao gerar PDF: '+(e.message||e)); }
+}
+
+
 // expose functions used inline in templates to window so behavior is preserved
 const _exports = [
   'gutAddRow','gutUpdate','gutRemove','gutRender',
@@ -485,9 +658,38 @@ const _exports = [
   'popUpdate','renderPOP','checklistAddItem','checklistSetStatus','checklistSetObs','checklistSetFoto','checklistRemoveItem','checklistSendToAction','checklistSendToGUT','renderChecklist',
   'renderDashboard','toast','initAll','uid','saveDB','loadDB','escapeHtml','escapeAttr'
 ];
+_exports.push('renderReport','renderReportPreview','generateReportPDF');
 _exports.forEach(name=>{ try{ if(typeof eval(name) !== 'undefined') window[name] = eval(name); }catch(e){} });
 
 // init on load
 document.addEventListener('DOMContentLoaded', ()=>{ initAll(); });
 
+// report buttons wiring
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    const bPrev = document.getElementById('btnPreview'); if(bPrev) bPrev.addEventListener('click', renderReportPreview);
+    const bGen = document.getElementById('btnGenerate'); if(bGen) bGen.addEventListener('click', ()=>{ renderReportPreview(); setTimeout(generateReportPDF, 350); });
+    const bBack = document.getElementById('btnBackToForm'); if(bBack) bBack.addEventListener('click', ()=>{ const card=document.getElementById('reportPreviewCard'); if(card) card.style.display='none'; window.scrollTo({top:0,behavior:'smooth'}); });
+    const bGen2 = document.getElementById('btnGenerateFromPreview'); if(bGen2) bGen2.addEventListener('click', generateReportPDF);
+  }catch(e){}
+});
+
 export {};
+
+// Mobile menu toggle: keeps sidebar usable on small screens
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    const toggle = document.getElementById('mobileMenuToggle');
+    const nav = document.querySelector('nav.tabs');
+    if(toggle && nav){
+      toggle.addEventListener('click', (e)=>{
+        e.stopPropagation(); nav.classList.toggle('open');
+        // close when clicking outside
+        if(nav.classList.contains('open')){
+          const closeFn = (ev)=>{ if(!nav.contains(ev.target) && ev.target !== toggle){ nav.classList.remove('open'); document.removeEventListener('click', closeFn); } };
+          setTimeout(()=>document.addEventListener('click', closeFn), 60);
+        }
+      });
+    }
+  }catch(e){/* non-critical */}
+});
